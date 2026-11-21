@@ -182,7 +182,7 @@ def main() -> int:
         colorbar = fig.colorbar(image, ax=ax, pad=0.025, shrink=0.92)
         colorbar.set_label("Temperature", rotation=90, labelpad=14)
 
-        ax.set_title(args.title, fontsize=15, weight="semibold", pad=14)
+        ax.set_title(args.title, fontsize=15, weight="bold", pad=14)
         ax.set_xlabel(x_label, labelpad=8)
         ax.set_ylabel(y_label, labelpad=8)
         ax.tick_params(direction="out", length=4, width=0.8)
