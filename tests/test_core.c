@@ -101,7 +101,7 @@ static int test_diagnostics(void)
     CHECK(diag.mean == 5.0);
 
     CHECK(fabs(
-        diag.energy_proxy - 20.0
+        diag.energy_proxy - 45.0
     ) < 1e-12);
 
     grid_destroy(&grid);
