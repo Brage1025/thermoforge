@@ -1,0 +1,22 @@
+
+# Compiled objects
+*.o
+
+# Executables
+thermoforge
+tests/test_core
+
+# Generated simulation results
+output/
+
+# Temporary files
+*.tmp
+*.bak
+
+# IDE configuration
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
