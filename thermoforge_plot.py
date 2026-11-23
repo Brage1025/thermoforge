@@ -25,8 +25,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def read_temperature_csv(path: Path) -> np.ndarray:
-    """Read a rectangular numeric CSV, tolerating a single header row/column."""
+
+def read_temperature_csv(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Read ThermoForge CSV, separating X coordinates from temperatures."""
     if not path.is_file():
         raise FileNotFoundError(f"Input CSV does not exist: {path}")
 
@@ -36,51 +37,31 @@ def read_temperature_csv(path: Path) -> np.ndarray:
             if row and any(cell.strip() for cell in row)
         ]
 
-    if not rows:
-        raise ValueError(f"The CSV is empty: {path}")
+    if len(rows) < 3:
+        raise ValueError("CSV does not contain enough grid data.")
 
-    # Convert cells to floats. If the first row is a header, discard it.
-    def convert_row(row: list[str]) -> list[float]:
-        return [float(cell.strip()) for cell in row]
+    # First row contains X coordinates, not temperatures.
+    x_coordinates = np.asarray(
+        [float(value.strip()) for value in rows[0]],
+        dtype=float
+    )
 
-    numeric_rows: list[list[float]] = []
-    for row_index, row in enumerate(rows):
-        try:
-            numeric_rows.append(convert_row(row))
-        except ValueError:
-            if row_index == 0:
-                continue
-            # A non-numeric first column can be row labels; handle below.
-            if all(len(r) == len(rows[0]) for r in rows):
-                try:
-                    numeric_rows = [
-                        [float(cell.strip()) for cell in r[1:]]
-                        for r in rows[1:]
-                    ]
-                    break
-                except ValueError as exc:
-                    raise ValueError(
-                        "CSV must contain a rectangular numeric temperature "
-                        "matrix, optionally with one header row or row-label column."
-                    ) from exc
-            raise ValueError(
-                f"Non-numeric value found on CSV row {row_index + 1}."
-            )
+    # All remaining rows contain temperature values.
+    temperature = np.asarray(
+        [[float(value.strip()) for value in row] for row in rows[1:]],
+        dtype=float
+    )
 
-    if not numeric_rows:
-        raise ValueError("No numeric temperature data was found in the CSV.")
+    if temperature.ndim != 2:
+        raise ValueError("Temperature data must be a 2D matrix.")
 
-    widths = {len(row) for row in numeric_rows}
-    if len(widths) != 1:
-        raise ValueError("CSV rows have different numbers of columns.")
+    if temperature.shape[1] != len(x_coordinates):
+        raise ValueError("X coordinates and temperature columns do not match.")
 
-    data = np.asarray(numeric_rows, dtype=float)
-    if data.ndim != 2 or min(data.shape) < 2:
-        raise ValueError(f"Expected a 2D grid, got shape {data.shape}.")
-    if not np.isfinite(data).all():
-        raise ValueError("Temperature data contains NaN or infinite values.")
+    if not np.isfinite(temperature).all():
+        raise ValueError("Temperature data contains invalid values.")
 
-    return data
+    return temperature, x_coordinates
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,7 +135,7 @@ def main() -> int:
     args = parse_args()
 
     try:
-        temperature = read_temperature_csv(args.input)
+        temperature, x_coordinates = read_temperature_csv(args.input)
         if args.dpi <= 0 or args.width <= 0 or args.height <= 0:
             raise ValueError("DPI and figure dimensions must be positive.")
         if args.vmin is not None and args.vmax is not None:
@@ -162,9 +143,16 @@ def main() -> int:
                 raise ValueError("--vmin must be smaller than --vmax.")
 
         rows, columns = temperature.shape
-        x_label = "x position (grid index)"
-        y_label = "y position (grid index)"
-        extent = args.extent or (0, columns - 1, 0, rows - 1)
+
+        extent = args.extent or (
+            x_coordinates[0],
+            x_coordinates[-1],
+            x_coordinates[0],
+            x_coordinates[-1]
+        )
+
+        x_label = "x position"
+        y_label = "y position"
 
         # Use a clean, vector-friendly layout; save PNG at high resolution.
         fig, ax = plt.subplots(figsize=(args.width, args.height), constrained_layout=True)
